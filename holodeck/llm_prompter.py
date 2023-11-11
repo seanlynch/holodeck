@@ -1,9 +1,16 @@
 # built in
+from dataclasses import dataclass
 import re
 
 # mine
 from .llm_apis.kobold import KoboldClient
 from . import template
+
+
+@dataclass
+class LlmResponse:
+    trim_history: int
+    response: str
 
 
 class Prompter:
@@ -16,6 +23,10 @@ class Prompter:
         autoextend: bool = False,
     ):
         self.llm_client = llm_client
+        assert llm_client.max_length is not None
+        self.max_length = llm_client.max_length
+        assert llm_client.max_context_length is not None
+        self.max_context_length = llm_client.max_context_length
         self.template = template
         self.autoextend = autoextend
 
@@ -26,14 +37,24 @@ class Prompter:
         prefix: str = "",
         previous: str = "",
         history=[],
-    ):
+        history_start: int = 0,
+    ) -> LlmResponse:
         response = previous
+        trim = history_start
         while True:
+            trimmed_history = history[trim:]
             prompt = self.template(system_prompt, history, prompt, prefix, response)
+            tokens = await self.llm_client.tokencount(prompt)
+            if tokens + self.max_length > self.max_context_length:
+                # Overflowed. Trim history.
+                trim += 1
+                print(f"Overflowed. New trim = {trim}.")
+                continue
+
             new = await self.llm_client.generate(prompt)
 
             if not new:
-                return response
+                break
 
             response += new
             m = self.stop_pattern.search(response)
@@ -44,4 +65,4 @@ class Prompter:
             if not self.autoextend:
                 break
 
-        return response.strip()
+        return LlmResponse(trim, response.strip())

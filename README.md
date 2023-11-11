@@ -7,14 +7,13 @@ Moriarty.
 
 ## How it works
 
-We keep two strings, `world`, which has the current description of the
-world, and `response`, which has the previous response from the
-LLM. The idea is to use the LLM to create, extend, or replace the
-response based on the current world description and a command from the
-user, then replace the world description with the response when we're
-happy.
+We present the LLM with a prompt telling it to update a description of
+the world based on the user's command, then replace the world
+description with its output. We keep a history seeded with examples so
+that it knows how to respond, and feed it as many history entries as
+we can without overflowing the context.
 
-Note that how well this works depends heavily on the model, the prompt
+How well this works depends heavily on the model, the prompt
 (including any necessary instruct template), your generation settings,
 time of day, wind speed, humidity, and barometer reading. It may be
 possible to make it work nearly flawlessly with a commercial hosted
@@ -39,7 +38,8 @@ finetune with 34 billion parameters running locally.
 ## Commands
 
 * `/regen` - regenerate the last response
-* `/undo` - discard the current response
+* `/undo` - discard the last response
+* `/history` - print current history
 
 Anything else will set the world description to the last response and
 attempt to generate a new response based on the world description and
@@ -49,8 +49,9 @@ description, and the last response if there is one.
 ## Example session
 
 Note that the responses depend a lot on the model and prompt, so you
-will probably have to play with those to get reasonable results. The
-model I'm running right now probably embellishes too much.
+will probably have to play with those to get reasonable results,
+though the results seem more stable now that I've implemented history
+and added examples to the beginning of the history.
 
 ```
 $ venv/bin/python -m holodeck

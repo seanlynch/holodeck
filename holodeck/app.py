@@ -13,8 +13,24 @@ from . import template
 
 class App:
     def __init__(self):
-        self.world = "An empty holodeck."
         self.prompter = None
+        self.world = "An empty holodeck."
+        self.history = [
+            template.HistoryEntry(
+                "Create a table.",
+                "The holodeck is empty save for a simple square wooden table in the center of the floor.",
+            ),
+            template.HistoryEntry(
+                "Create a blue sky overhead.",
+                "There is a simple square wooden table in the center of the holodeck floor. A blue sky stretches overhead, merging with the holodeck walls and floor in the distance.",
+            ),
+            template.HistoryEntry(
+                "Clear the holodeck.",
+                self.world,
+            ),
+        ]
+        self.min_history = len(self.history)
+        self.trim = 0
 
     async def connect(self):
         llm_client = KoboldClient(
@@ -25,13 +41,21 @@ class App:
             llm_client, template=template.LIMARP3_SHORT, autoextend=True
         )
 
+    def pop_history(self):
+        if len(self.history) < self.min_history:
+            return None
+
+        if self.trim > 0:
+            # Trim 1 fewer history items off. Not precise, but close
+            # enough.
+            self.trim -= 1
+
+        return self.history.pop()
+
     async def run(self):
         await self.connect()
 
         session = prompt_toolkit.PromptSession()
-        response = ""
-        prev_command = None
-
         while True:
             with patch_stdout():
                 command = await session.prompt_async("> ")
@@ -39,31 +63,31 @@ class App:
             command = command.strip()
             if not command:
                 print(f"World: {self.world}")
-                if response:
-                    print(f"Response: {response}")
                 continue
 
             if command.startswith("/"):
                 match command:
-                    case "":
-                        continue
                     case "/regen":
-                        command = prev_command
-                        response = ""
+                        h = self.pop_history()
+                        if h is None:
+                            print("Nothing to regenerate.")
+                        else:
+                            command = h.prompt
+                            self.world = self.history[-1].response
+                            await self.update_world(command)
                     case "/undo":
-                        response = ""
-                        print(self.world)
-                        continue
+                        h = self.pop_history()
+                        if h is None:
+                            print("Nothing left to undo.")
+                        else:
+                            self.world = h.response
+                    case "/history":
+                        for history_item in self.history:
+                            print(history_item)
                     case _:
                         print(f"Unrecognized command {command}")
-                        continue
-            elif response:
-                self.world = response
-                response = ""
-
-            response = await self.update_world(command)
-            prev_command = command
-            print(response)
+            else:
+                await self.update_world(command)
 
     async def update_world(self, command):
         system_prompt = f"""\
@@ -72,10 +96,15 @@ You are the Enterprise computer from Star Trek: The Next Generation. You are con
 Current world description:
 {self.world}
 """
-        return await self.prompter.prompt(
+        r = await self.prompter.prompt(
             system_prompt=system_prompt,
             prompt=command,
             prefix="New world description:\n",
+            history=self.history,
+            history_start=self.trim,
         )
 
-        return response
+        self.history.append(template.HistoryEntry(command, r.response))
+        self.world = r.response
+        self.trim = r.trim_history
+        print(r.response)
