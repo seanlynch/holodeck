@@ -1,6 +1,25 @@
 # Holodeck
 
-An LLM experiment.
+An experimental attempt at using an LLM to create a "holodeck"
+interface like in Star Trek, so you can say things like, "Computer,
+create an opponent who can defeat Data" and get a sentient Professor
+Moriarty.
+
+## How it works
+
+We keep two strings, `world`, which has the current description of the
+world, and `response`, which has the previous response from the
+LLM. The idea is to use the LLM to create, extend, or replace the
+response based on the current world description and a command from the
+user, then replace the world description with the response when we're
+happy.
+
+Note that how well this works depends heavily on the model, the prompt
+(including any necessary instruct template), your generation settings,
+time of day, wind speed, humidity, and barometer reading. It may be
+possible to make it work nearly flawlessly with a commercial hosted
+model, but so far the most sophisticated model I've tried with is a Yi
+finetune with 34 billion parameters running locally.
 
 ## How to use
 
