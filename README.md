@@ -10,7 +10,12 @@ An LLM experiment.
    `requirements.txt` into it. If you don't know how to do that,
    it's probably best to wait until this software is in a more usable
    state.
-3. `venv/bin/python -m holodeck.main`
+3. Start a Kobold Lite API server on port 5001, or change the
+   hardcoded address in `app.py`, or even better turn it into a
+   command line or config line option and send me a PR, or implement
+   some other API in `llm_apis` and send me a PR. Or wait and I'll
+   probably do it myself.
+4. `venv/bin/python -m holodeck.main`
 
 ## Commands
 
