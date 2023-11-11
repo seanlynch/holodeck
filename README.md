@@ -38,8 +38,8 @@ finetune with 34 billion parameters running locally.
 
 ## Commands
 
-* `/extend` - extend the current response
-* `/undo` - clear the current response
+* `/regen` - regenerate the last response
+* `/undo` - discard the current response
 
 Anything else will set the world description to the last response and
 attempt to generate a new response based on the world description and

@@ -6,23 +6,30 @@ import prompt_toolkit
 from prompt_toolkit.patch_stdout import patch_stdout
 
 # mine
+from .llm_prompter import Prompter
 from .llm_apis.kobold import KoboldClient
 from . import template
 
 
 class App:
-    stop_pattern = re.compile(r"```|###|</")
-
     def __init__(self):
-        self.llm_client = KoboldClient("http://localhost:5001/api")
         self.world = "An empty holodeck."
+        self.prompter = None
+
+    async def connect(self):
+        llm_client = KoboldClient("http://localhost:5001/api")
+        await llm_client.connect()
+        self.prompter = Prompter(
+            llm_client, template=template.LIMARP3_SHORT, autoextend=True
+        )
 
     async def run(self):
-        await self.llm_client.connect()
+        await self.connect()
 
         session = prompt_toolkit.PromptSession()
         response = ""
         prev_command = None
+
         while True:
             with patch_stdout():
                 command = await session.prompt_async("> ")
@@ -41,8 +48,6 @@ class App:
                     case "/regen":
                         command = prev_command
                         response = ""
-                    case "/extend":
-                        command = prev_command
                     case "/undo":
                         response = ""
                         print(self.world)
@@ -54,24 +59,21 @@ class App:
                 self.world = response
                 response = ""
 
-            response = await self.update_world(command, response)
+            response = await self.update_world(command)
             prev_command = command
             print(response)
 
-    async def update_world(self, command, prev):
+    async def update_world(self, command):
         system_prompt = f"""\
+You are the Enterprise computer from Star Trek: The Next Generation. You are controlling the holodeck. Update the holodeck world description according to the following request. Do not make any changes to the scene not requested by the user. Write only the new description of the world and all objects in it. Make sure to keep any existing objects.
+
 Current world description:
 {self.world}
-
-***
-
-Please update the world description according to the following request. Give a complete description of the world as it exists after the request, keeping any objects which already existed in the world and their complete descriptions. Do not describe any actions or events, only the world and the objects in it."""
-        prompt = template.LIMARP3_SHORT(
-            system_prompt, [], command, "New world description:\n", prev
+"""
+        return await self.prompter.prompt(
+            system_prompt=system_prompt,
+            prompt=command,
+            prefix="New world description:\n",
         )
-        response = prev + await self.llm_client.generate(prompt)
-        m = self.stop_pattern.search(response)
-        if m is not None:
-            response = response[: m.start(0)]
 
         return response

@@ -8,22 +8,28 @@ from . import template
 
 class Prompter:
     stop_pattern = re.compile(r"```|###|</")
-    autoextend = True
 
-    def __init__(self):
-        self.llm_client = KoboldClient("http://localhost:5001/api")
-
-    async def connect(self):
-        await self.llm_client.connect()
+    def __init__(
+        self,
+        llm_client: KoboldClient,
+        template: template.Template,
+        autoextend: bool = False,
+    ):
+        self.llm_client = llm_client
+        self.template = template
+        self.autoextend = autoextend
 
     async def prompt(
-        self, system_prompt: str, prompt: str, prefix: str = "", history=[]
+        self,
+        system_prompt: str,
+        prompt: str,
+        prefix: str = "",
+        previous: str = "",
+        history=[],
     ):
-        response = ""
+        response = previous
         while True:
-            prompt = template.LIMARP3_SHORT(
-                system_prompt, history, prompt, prefix, response
-            )
+            prompt = self.template(system_prompt, history, prompt, prefix, response)
             new = await self.llm_client.generate(prompt)
 
             if not new:
@@ -33,7 +39,9 @@ class Prompter:
             m = self.stop_pattern.search(response)
             if m is not None:
                 response = response[: m.start(0)]
-                return response
+                break
 
             if not self.autoextend:
-                return response
+                break
+
+        return response.strip()
