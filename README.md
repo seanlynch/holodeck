@@ -45,9 +45,3 @@ The circular, wooden table remains in the center of the room, its surface now em
 A deep, rich shade of azure fills the sky above. Its expanse stretches infinitely into the distance, unbroken by clouds or other disturbances. It reflects off the floor below, creating a mirror image of itself on the polished wood.
 >
 ```
-
-# TODO
-
-* Factor out generation (WIP in `llm_prompter.py`)
-* Make instruct templates config-based instead of hardcoded
-* Lots of other stuff
