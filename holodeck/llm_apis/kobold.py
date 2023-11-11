@@ -1,19 +1,19 @@
 # built-in
 import asyncio
 import json
+from typing import Any
 
 # third party
 import aiohttp
 
 
 class KoboldClient:
-    def __init__(self, endpoint: str):
+    def __init__(self, endpoint: str, settings: dict[str, Any]):
         self.endpoint = endpoint.rstrip("/")
         self.version = None
         self.max_context_length = None
         self.max_length = None
-        self.temperature = 0.84
-        self.top_p = 0.69
+        self.settings = settings
 
     def url(self, path: str) -> str:
         return f"{self.endpoint}{path}"
@@ -43,9 +43,8 @@ class KoboldClient:
 
     async def generate(self, prompt: str):
         data = {
+            **self.settings,
             "prompt": prompt,
-            "temperature": self.temperature,
-            "top_p": self.top_p,
         }
 
         resp = await self.post("/v1/generate", data)

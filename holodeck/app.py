@@ -17,7 +17,9 @@ class App:
         self.prompter = None
 
     async def connect(self):
-        llm_client = KoboldClient("http://localhost:5001/api")
+        llm_client = KoboldClient(
+            "http://localhost:5001/api", settings={"min_p": 0.07, "temperature": 0.9}
+        )
         await llm_client.connect()
         self.prompter = Prompter(
             llm_client, template=template.LIMARP3_SHORT, autoextend=True
