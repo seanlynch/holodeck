@@ -43,16 +43,20 @@ class Prompter:
         trim = history_start
         while True:
             trimmed_history = history[trim:]
-            prompt = self.template(system_prompt, history, prompt, prefix, response)
-            tokens = await self.llm_client.tokencount(prompt)
+            p = self.template(
+                system_prompt=system_prompt,
+                history=trimmed_history,
+                prompt=prompt,
+                prefix=prefix,
+                prev=response,
+            )
+            tokens = await self.llm_client.tokencount(p)
             if tokens + self.max_length > self.max_context_length:
                 # Overflowed. Trim history.
                 trim += 1
-                print(f"Overflowed. New trim = {trim}.")
                 continue
 
-            new = await self.llm_client.generate(prompt)
-
+            new = await self.llm_client.generate(p)
             if not new:
                 break
 

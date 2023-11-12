@@ -12,6 +12,10 @@ from . import template
 
 
 class App:
+    system_prompt = f"""\
+You are the Enterprise computer from Star Trek: The Next Generation. You are controlling the holodeck. Update the holodeck scene description according to the following request. Do not make any changes to the scene not requested by the user, and keep any existing objects. Write only the new, complete description of the holodeck scene and all objects in it."""
+    prefix = "Updated, complete holodeck scene description:\n"
+
     def __init__(self):
         self.prompter = None
         self.world = "An empty holodeck."
@@ -23,6 +27,10 @@ class App:
             template.HistoryEntry(
                 "Create a blue sky overhead.",
                 "There is a simple square wooden table in the center of the holodeck floor. A blue sky stretches overhead, merging with the holodeck walls and floor in the distance.",
+            ),
+            template.HistoryEntry(
+                "Put some chairs around the table.",
+                "There is a simple square wooden table in the center of the holodeck floor. There are four matching chairs placed around it. A blue sky stretches overhead, merging with the holodeck walls and floor in the distance.",
             ),
             template.HistoryEntry(
                 "Clear the holodeck.",
@@ -62,7 +70,7 @@ class App:
 
             command = command.strip()
             if not command:
-                print(f"World: {self.world}")
+                print(self.world)
                 continue
 
             if command.startswith("/"):
@@ -80,7 +88,8 @@ class App:
                         if h is None:
                             print("Nothing left to undo.")
                         else:
-                            self.world = h.response
+                            self.world = self.history[-1].response
+                            print(self.world)
                     case "/history":
                         for history_item in self.history:
                             print(history_item)
@@ -90,16 +99,10 @@ class App:
                 await self.update_world(command)
 
     async def update_world(self, command):
-        system_prompt = f"""\
-You are the Enterprise computer from Star Trek: The Next Generation. You are controlling the holodeck. Update the holodeck world description according to the following request. Do not make any changes to the scene not requested by the user. Write only the new description of the world and all objects in it. Make sure to keep any existing objects.
-
-Current world description:
-{self.world}
-"""
         r = await self.prompter.prompt(
-            system_prompt=system_prompt,
+            system_prompt=self.system_prompt,
             prompt=command,
-            prefix="New world description:\n",
+            prefix=self.prefix,
             history=self.history,
             history_start=self.trim,
         )
