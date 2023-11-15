@@ -27,13 +27,14 @@ finetune with 34 billion parameters running locally.
 2. Create a virtual environment and install the packages from
    `requirements.txt` into it. If you don't know how to do that,
    it's probably best to wait until this software is in a more usable
-   state.
-3. Start a Kobold Lite API server on port 5001, or change the
-   hardcoded address in `app.py`, or even better turn it into a
-   command line or config line option and send me a PR, or implement
-   some other API in `llm_apis` and send me a PR. Or wait and I'll
-   probably do it myself.
-4. `venv/bin/python -m holodeck.main`
+   state. You may not need everything in there.
+3. You may also need to install some dependencies for
+   [Guidance](https://github.com/guidance-ai/guidance), in particular
+   llama-cpp-python with cuBLAS support if you want to use local GGUF
+   models. If you don't, you will need to change `app.py` to use
+   whatever model type you like (or make it configurable and send me a
+   PR).
+4. `venv/bin/python -m holodeck.main --model <model>`
 
 ## Commands
 
@@ -41,10 +42,7 @@ finetune with 34 billion parameters running locally.
 * `/undo` - discard the last response
 * `/history` - print current history
 
-Anything else will set the world description to the last response and
-attempt to generate a new response based on the world description and
-your command. Hitting enter by itself will print the current world
-description, and the last response if there is one.
+Anything else will generate a new world description based on your instructions.
 
 ## Example session
 

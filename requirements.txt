@@ -1,3 +1,13 @@
 aiohttp
+guidance
 prompt_toolkit
 requests
+transformers
+torch
+torchvision
+torchaudio
+bitsandbytes
+redis
+redis-om
+accelerate
+scipy

@@ -6,48 +6,34 @@ import prompt_toolkit
 from prompt_toolkit.patch_stdout import patch_stdout
 
 # mine
-from .llm_prompter import Prompter
-from .llm_apis.kobold import KoboldClient
-from . import template
+import guidance
+from guidance import models, gen, system, user, assistant
 
 
 class App:
-    system_prompt = f"""\
-You are the Enterprise computer from Star Trek: The Next Generation. You are controlling the holodeck. Update the holodeck scene description according to the following request. Do not make any changes to the scene not requested by the user, and keep any existing objects. Write only the new, complete description of the holodeck scene and all objects in it."""
-    prefix = "Updated, complete holodeck scene description:\n"
-
-    def __init__(self):
-        self.prompter = None
+    def __init__(self, model: str):
+        self.llm = models.LlamaCppChat(model, n_gpu_layers=128, device_map="auto")
         self.world = "An empty holodeck."
         self.history = [
-            template.HistoryEntry(
+            (
                 "Create a table.",
                 "The holodeck is empty save for a simple square wooden table in the center of the floor.",
             ),
-            template.HistoryEntry(
+            (
                 "Create a blue sky overhead.",
                 "There is a simple square wooden table in the center of the holodeck floor. A blue sky stretches overhead, merging with the holodeck walls and floor in the distance.",
             ),
-            template.HistoryEntry(
+            (
                 "Put some chairs around the table.",
                 "There is a simple square wooden table in the center of the holodeck floor. There are four matching chairs placed around it. A blue sky stretches overhead, merging with the holodeck walls and floor in the distance.",
             ),
-            template.HistoryEntry(
+            (
                 "Clear the holodeck.",
                 self.world,
             ),
         ]
         self.min_history = len(self.history)
         self.trim = 0
-
-    async def connect(self):
-        llm_client = KoboldClient(
-            "http://localhost:5001/api", settings={"min_p": 0.07, "temperature": 0.9}
-        )
-        await llm_client.connect()
-        self.prompter = Prompter(
-            llm_client, template=template.LIMARP3_SHORT, autoextend=True
-        )
 
     def pop_history(self):
         if len(self.history) < self.min_history:
@@ -61,8 +47,6 @@ You are the Enterprise computer from Star Trek: The Next Generation. You are con
         return self.history.pop()
 
     async def run(self):
-        await self.connect()
-
         session = prompt_toolkit.PromptSession()
         while True:
             with patch_stdout():
@@ -80,15 +64,15 @@ You are the Enterprise computer from Star Trek: The Next Generation. You are con
                         if h is None:
                             print("Nothing to regenerate.")
                         else:
-                            command = h.prompt
-                            self.world = self.history[-1].response
+                            command = h[0]
+                            self.world = self.history[-1][1]
                             await self.update_world(command)
                     case "/undo":
                         h = self.pop_history()
                         if h is None:
                             print("Nothing left to undo.")
                         else:
-                            self.world = self.history[-1].response
+                            self.world = self.history[-1][1]
                             print(self.world)
                     case "/history":
                         for history_item in self.history:
@@ -99,15 +83,17 @@ You are the Enterprise computer from Star Trek: The Next Generation. You are con
                 await self.update_world(command)
 
     async def update_world(self, command):
-        r = await self.prompter.prompt(
-            system_prompt=self.system_prompt,
-            prompt=command,
-            prefix=self.prefix,
-            history=self.history,
-            history_start=self.trim,
-        )
+        lm = self.llm
+        with system():
+            lm += f"Update this holodeck description based on the instructions given, being sure to preserve any existing objects and details that are not explicitly changed or removed."
 
-        self.history.append(template.HistoryEntry(command, r.response))
-        self.world = r.response
-        self.trim = r.trim_history
-        print(r.response)
+        with user():
+            lm += f"Original description:\n{self.world}\n\nInstructions: {command}"
+
+        with assistant():
+            lm += "New description (one paragraph): " + gen(name="new_world", stop="\n")
+
+        new_world = lm["new_world"]
+        self.history.append((command, new_world))
+        self.world = new_world
+        print(new_world)
