@@ -1,18 +1,34 @@
 # built in
+from functools import wraps
 import re
 
 # third party
 import prompt_toolkit
 from prompt_toolkit.patch_stdout import patch_stdout
-
-# mine
 import guidance
 from guidance import models, gen, system, user, assistant
+import transformers
+import torch
+
+
+def retry_async(f):
+    @wraps(f)
+    async def retry_wrapper(*args, **kwargs):
+        i = 0
+        while True:
+            try:
+                return await f(*args, **kwargs)
+            except RecursionError:
+                i += 1
+                if i == 10:
+                    raise
+
+    return retry_wrapper
 
 
 class App:
     def __init__(self, model: str):
-        self.llm = models.LlamaCppChat(model, n_gpu_layers=128, device_map="auto")
+        self.llm = models.LlamaCppChat(model, n_gpu_layers=-1, n_ctx=2048)
         self.world = "An empty holodeck."
         self.history = [
             (
@@ -82,6 +98,7 @@ class App:
             else:
                 await self.update_world(command)
 
+    @retry_async
     async def update_world(self, command):
         lm = self.llm
         with system():
@@ -91,7 +108,9 @@ class App:
             lm += f"Original description:\n{self.world}\n\nInstructions: {command}"
 
         with assistant():
-            lm += "New description (one paragraph): " + gen(name="new_world", stop="\n")
+            lm += "New description (one paragraph):\n" + gen(
+                name="new_world", temperature=0.8, stop="\n"
+            )
 
         new_world = lm["new_world"]
         self.history.append((command, new_world))

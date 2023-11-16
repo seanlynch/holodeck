@@ -11,3 +11,5 @@ redis
 redis-om
 accelerate
 scipy
+sentencepiece
+protobuf
