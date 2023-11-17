@@ -6,18 +6,18 @@ import re
 import prompt_toolkit
 from prompt_toolkit.patch_stdout import patch_stdout
 import guidance
-from guidance import models, gen, system, user, assistant
+from guidance import models, gen, system, user, assistant, select
 import transformers
 import torch
 
 
-def retry_async(f):
+def retry(f):
     @wraps(f)
-    async def retry_wrapper(*args, **kwargs):
+    def retry_wrapper(*args, **kwargs):
         i = 0
         while True:
             try:
-                return await f(*args, **kwargs)
+                return f(*args, **kwargs)
             except RecursionError:
                 i += 1
                 if i == 10:
@@ -27,8 +27,8 @@ def retry_async(f):
 
 
 class App:
-    def __init__(self, model: str):
-        self.llm = models.LlamaCppChat(model, n_gpu_layers=-1, n_ctx=2048)
+    def __init__(self, llm):
+        self.llm = llm
         self.world = "An empty holodeck."
         self.history = [
             (
@@ -70,39 +70,45 @@ class App:
 
             command = command.strip()
             if not command:
-                print(self.world)
                 continue
 
-            if command.startswith("/"):
-                match command:
-                    case "/regen":
-                        h = self.pop_history()
-                        if h is None:
-                            print("Nothing to regenerate.")
-                        else:
-                            command = h[0]
-                            self.world = self.history[-1][1]
-                            await self.update_world(command)
-                    case "/undo":
-                        h = self.pop_history()
-                        if h is None:
-                            print("Nothing left to undo.")
-                        else:
-                            self.world = self.history[-1][1]
-                            print(self.world)
-                    case "/history":
-                        for history_item in self.history:
-                            print(history_item)
-                    case _:
-                        print(f"Unrecognized command {command}")
-            else:
-                await self.update_world(command)
+            c = self.get_command(command)
 
-    @retry_async
-    async def update_world(self, command):
-        lm = self.llm
+            print(f"Command number: {c}")
+
+            match c:
+                case "2":
+                    h = self.pop_history()
+                    if h is None:
+                        print("Nothing to regenerate.")
+                    else:
+                        command = h[0]
+                        self.world = self.history[-1][1]
+                        self.update_world(command)
+                case "4":
+                    h = self.pop_history()
+                    if h is None:
+                        print("Nothing left to undo.")
+                    else:
+                        self.world = self.history[-1][1]
+                        print(self.world)
+                case "3":
+                    for history_item in self.history:
+                        print(history_item)
+                case "1":
+                    self.update_world(command)
+                case "5":
+                    print(self.world)
+                case "6":
+                    return
+
+    @retry
+    def update_world(self, command):
         with system():
-            lm += f"Update this holodeck description based on the instructions given, being sure to preserve any existing objects and details that are not explicitly changed or removed."
+            lm = (
+                self.llm
+                + "You are the Enterprise computer controlling the holodeck. Update this holodeck description based on the instructions given, being sure to preserve any existing objects and details that are not explicitly changed or removed."
+            )
 
         with user():
             lm += f"Original description:\n{self.world}\n\nInstructions: {command}"
@@ -116,3 +122,29 @@ class App:
         self.history.append((command, new_world))
         self.world = new_world
         print(new_world)
+
+    @retry
+    def get_command(self, command):
+        with system():
+            lm = (
+                self.llm
+                + """You are the Enterprise computer controlling the holodeck. Please determine what the user is asking you to do from the following list:
+
+1. Create, remove, or change something in the holodeck
+2. Retry the last command
+3. Print command history
+4. Undo the last command
+5. Describe the holodeck, look around, print the holodeck description
+6. Quit, exit
+"""
+            )
+
+        with user():
+            lm += f"Command: {command}\n"
+
+        with assistant():
+            lm += "Answer [1-6]: " "" + select(
+                ["1", "2", "3", "4", "5", "6"], name="option"
+            )
+
+        return lm["option"]
