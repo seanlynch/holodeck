@@ -1,6 +1,6 @@
 # TODO
 
-* Make the model type configurable instead of hardcoding llama.cpp
+* Make the model type more configurable
 * Make more extensive use of Guidance, for example to describe the
   changes to the holodeck in addition to giving the new description.
 * Investigate adding history or examples back in.

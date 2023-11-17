@@ -38,21 +38,31 @@ finetune with 34 billion parameters running locally.
 
 ## Commands
 
-* `/regen` - regenerate the last response
-* `/undo` - discard the last response
-* `/history` - print current history
+We now use the LLM to recognize commands. The different command
+descriptions given to the LLM are:
 
-Anything else will generate a new world description based on your instructions.
+1. Create, remove, or change something in the holodeck
+2. Retry the last command
+3. Print command history
+4. Undo the last command
+5. Describe the holodeck, look around, print the holodeck description
+6. Quit, exit
+
+We print the command the LLM thinks you gave for debugging
+purposes. If it always gives 1, something is messed up. I haven't
+yet figured out what causes this, but I suspect the model would
+otherwise have given a blank response. Try a different model, or try
+playing around with the prompt in `app.py` and let me know if you have
+any success from changing it.
 
 ## Example session
 
 Note that the responses depend a lot on the model and prompt, so you
-will probably have to play with those to get reasonable results,
-though the results seem more stable now that I've implemented history
-and added examples to the beginning of the history.
+will probably have to play with those to get reasonable results.
 
 ```
-$ venv/bin/python -m holodeck
+$ venv/bin/python -m holodeck --model \
+Doctor-Shotgun/airoboros-2.2.1-limarpv3-y34b --transformers
 >
 World: An empty holodeck.
 > Create a table.
